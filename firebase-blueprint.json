@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "Campaign": {
+      "title": "Ad Campaign",
+      "description": "State of the current marketing campaign",
+      "type": "object",
+      "properties": {
+        "activePrompt": { "type": "string" },
+        "activeTab": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "A message in the collaboration chat",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "image": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["role", "content", "createdAt"]
+    },
+    "User": {
+      "title": "User Profile",
+      "description": "User profile and presence data",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastSeen": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Root campaign document"
+    },
+    "/campaigns/{campaignId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages for a specific campaign"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    }
+  }
+}

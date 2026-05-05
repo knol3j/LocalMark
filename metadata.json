@@ -1,0 +1,6 @@
+{
+  "name": "MarketFlow AI",
+  "description": "Professional-grade multimodal marketing engine for generating campaigns, copy, and visual assets.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["AI Content Generation", "Multimodal Image Analysis", "Marketing Strategy Planning"]
+}
