@@ -28,6 +28,7 @@ service cloud.firestore {
       return data.keys().hasAll(['activePrompt', 'activeTab', 'updatedAt']) &&
              data.activePrompt is string && data.activePrompt.size() <= 5000 &&
              data.activeTab is string && data.activeTab.size() <= 50 &&
+             (!('enabledModules' in data) || (data.enabledModules is list && data.enabledModules.size() <= 20)) &&
              data.updatedAt == request.time;
     }
 
@@ -47,6 +48,36 @@ service cloud.firestore {
              data.lastSeen == request.time;
     }
 
+    function isValidVariation(data) {
+      return data.keys().hasAll(['label', 'copy', 'ctr', 'conv', 'platform', 'audience', 'trend']) &&
+             data.label is string && data.label.size() <= 200 &&
+             data.copy is string && data.copy.size() <= 2000 &&
+             data.ctr is number && data.conv is number &&
+             data.platform is string && data.audience is string &&
+             data.trend in ['up', 'down', 'stable'];
+    }
+
+    function isValidPersona(data) {
+      return data.keys().hasAll(['name', 'demographics', 'pains', 'gains', 'engagementScore']) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.demographics is string &&
+             data.pains is list && data.gains is list &&
+             data.engagementScore is number;
+    }
+
+    function isValidMetric(data) {
+      return data.keys().hasAll(['timestamp', 'ctr', 'conv', 'spend']) &&
+             data.timestamp is string &&
+             data.ctr is number && data.conv is number && data.spend is number;
+    }
+
+    function isValidKeyword(data) {
+      return data.keys().hasAll(['term', 'volume', 'difficulty', 'intent']) &&
+             data.term is string && data.term.size() <= 200 &&
+             data.volume is string && data.difficulty is string &&
+             data.intent is string;
+    }
+
     // --- Rules ---
 
     match /users/{userId} {
@@ -57,6 +88,7 @@ service cloud.firestore {
 
     match /campaigns/{campaignId} {
       allow get: if isSignedIn();
+      allow list: if isSignedIn();
       allow create, update: if isSignedIn() && isValidId(campaignId) && isValidCampaign(incoming());
 
       match /messages/{messageId} {
@@ -66,6 +98,35 @@ service cloud.firestore {
                         isValidMessage(incoming()) && 
                         exists(/databases/$(database)/documents/campaigns/$(campaignId));
         allow update, delete: if false;
+      }
+
+      match /variations/{variationId} {
+        allow list, get: if isSignedIn();
+        allow create, update: if isSignedIn() && 
+                               isValidId(variationId) && 
+                               isValidVariation(incoming());
+        allow delete: if isSignedIn();
+      }
+
+      match /personas/{personaId} {
+        allow list, get: if isSignedIn();
+        allow create, update: if isSignedIn() && 
+                               isValidId(personaId) && 
+                               isValidPersona(incoming());
+        allow delete: if isSignedIn();
+      }
+
+      match /keywords/{keywordId} {
+        allow list, get: if isSignedIn();
+        allow create, update: if isSignedIn() && 
+                               isValidId(keywordId) && 
+                               isValidKeyword(incoming());
+        allow delete: if isSignedIn();
+      }
+
+      match /metrics/{metricId} {
+        allow list, get: if isSignedIn();
+        allow create: if isSignedIn() && isValidMetric(incoming());
       }
     }
   }

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Megaphone, Target, BarChart3, Rocket, Cpu, Palette, Plus, TrendingUp, Users, DollarSign, Save, CheckCircle2, Columns } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Target, BarChart3, Rocket, Cpu, Palette, Plus, TrendingUp, Users, DollarSign, Save, CheckCircle2, Columns, Zap, Activity, Eye } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import { useCollaboration } from './CollaborationProvider';
 
 interface SidebarProps {
   onSelectTemplate?: (prompt: string) => void;
@@ -19,7 +20,20 @@ const analyticsData = [
   { day: '07', reach: 3490, eng: 430 },
 ];
 
+const MCP_MODULES = [
+  { id: 'AdSync', label: 'AdSync', description: 'Meta/Google Deployment', color: 'indigo' },
+  { id: 'EmailFlow', label: 'EmailFlow', description: 'CRM/Hubspot Automation', color: 'rose' },
+  { id: 'SocialPilot', label: 'SocialPilot', description: 'Social Multi-Scheduler', color: 'emerald' },
+  { id: 'InfluencerConnect', label: 'InfluencerLink', description: 'Blogger/Creator outreach', color: 'orange' },
+  { id: 'SearchInsight', label: 'SearchInsight', description: 'Trend Analysis MCP', color: 'fuchsia' },
+  { id: 'CopySentinel', label: 'CopyGuard', description: 'Brand Compliance Auto-check', color: 'amber' },
+  { id: 'PixelRetarget', label: 'PixelTarget', description: 'Remarketing dynamic loops', color: 'cyan' },
+];
+
 export default function Sidebar({ onSelectTemplate, activeTab, onSelectTab }: SidebarProps) {
+  const { campaignState, toggleModule } = useCollaboration();
+  const enabledModules = campaignState.enabledModules || [];
+  
   const [dateRange, setDateRange] = useState('7d');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -33,7 +47,7 @@ export default function Sidebar({ onSelectTemplate, activeTab, onSelectTab }: Si
 
   const menuItems = [
     { id: 'engine', icon: LayoutDashboard, label: 'Control Center' },
-    { id: 'campaigns', icon: Megaphone, label: 'Ad Campaigns' },
+    { id: 'campaigns', icon: Eye, label: 'Campaign Preview' },
     { id: 'ab-test', icon: Columns, label: 'A/B Testing' },
     { id: 'audience', icon: Target, label: 'Audience Insight' },
     { id: 'performance', icon: BarChart3, label: 'Performance' },
@@ -135,101 +149,77 @@ export default function Sidebar({ onSelectTemplate, activeTab, onSelectTab }: Si
         ))}
       </div>
 
-      {/* New Analytics Section */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
+      <div className="glass-panel !p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Detail Analytics</h3>
-          <select 
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="bg-transparent text-[9px] font-mono text-indigo-400 outline-none cursor-pointer uppercase tracking-tighter"
-          >
-            <option value="7d">Last 7D</option>
-            <option value="30d">Last 30D</option>
-            <option value="90d">Last 90D</option>
-          </select>
+          <h3 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Cpu className="w-3 h-3" /> MCP Servers
+          </h3>
+          <Activity className="w-3 h-3 text-indigo-400/50 animate-pulse" />
         </div>
+        
+        <div className="grid grid-cols-1 gap-2">
+          {MCP_MODULES.map((module) => {
+            const isEnabled = enabledModules.includes(module.id);
+            return (
+              <button
+                key={module.id}
+                onClick={() => toggleModule(module.id)}
+                className={`flex items-center justify-between p-2 rounded-xl transition-all border ${
+                  isEnabled 
+                    ? 'bg-white/10 border-white/20' 
+                    : 'bg-transparent border-transparent hover:bg-white/5'
+                }`}
+              >
+                <div className="flex flex-col items-start px-1">
+                  <span className={`text-[10px] font-bold ${isEnabled ? `text-${module.color}-400` : 'text-slate-400'}`}>
+                    {module.label}
+                  </span>
+                  <span className="text-[8px] text-slate-500 uppercase tracking-tighter">
+                    {module.description}
+                  </span>
+                </div>
+                <div className={`w-8 h-4 rounded-full relative transition-colors ${isEnabled ? 'bg-indigo-500' : 'bg-slate-700'}`}>
+                  <motion.div 
+                    animate={{ x: isEnabled ? 16 : 2 }}
+                    className="absolute top-1 w-2 h-2 bg-white rounded-full shadow-lg"
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
+      <div className="glass-panel !p-5 space-y-4">
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Campaign Meta</h3>
         <div className="space-y-4">
-          <div className="flex justify-between items-end">
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-500 uppercase flex items-center gap-1">
-                <Users className="w-3 h-3" /> Reach
-              </span>
-              <div className="text-sm font-bold text-white">1.2M <span className="text-emerald-400 text-[10px] font-normal ml-1">+5%</span></div>
-            </div>
-            <div className="w-24 h-8">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analyticsData}>
-                  <Line type="monotone" dataKey="reach" stroke="#6366f1" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="flex justify-between items-center text-[11px]">
+            <span className="text-slate-400">ID Prefix</span>
+            <span className="text-white font-mono">{campaignState.id?.slice(0, 8).toUpperCase()}</span>
           </div>
-
-          <div className="flex justify-between items-end">
-            <div className="space-y-1">
-              <span className="text-[10px] text-slate-500 uppercase flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" /> Engagement
-              </span>
-              <div className="text-sm font-bold text-white">85.4K <span className="text-emerald-400 text-[10px] font-normal ml-1">+12%</span></div>
-            </div>
-            <div className="w-24 h-8">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analyticsData}>
-                  <Line type="monotone" dataKey="eng" stroke="#d946ef" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="flex justify-between items-center text-[11px]">
+            <span className="text-slate-400">Active Modules</span>
+            <span className="text-white font-mono">{enabledModules.length}</span>
           </div>
-
-          <div className="pt-2 border-t border-white/5">
-            <div className="flex justify-between items-center text-[10px]">
-              <span className="text-slate-500 flex items-center gap-1 lowercase font-mono italic">
-                <DollarSign className="w-3 h-3" /> avg. cpa
-              </span>
-              <span className="text-white font-bold">$2.40</span>
-            </div>
+          <div className="flex justify-between items-center text-[11px]">
+            <span className="text-slate-400">Memory Context</span>
+            <span className="text-indigo-400 font-mono">{(campaignState.activePrompt?.length || 0) > 0 ? 'SYNCHRONIZED' : 'WAITING'}</span>
           </div>
         </div>
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hyperparameters</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="text-[10px] text-slate-500 block mb-1">TEMPERATURE</label>
-            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div className="w-3/4 h-full bg-indigo-500"></div>
-            </div>
-            <div className="flex justify-between mt-1 text-[9px] font-mono">
-              <span className="text-indigo-400">0.75</span>
-              <span className="text-slate-600 italic uppercase">Creative</span>
-            </div>
-          </div>
-          <div>
-            <label className="text-[10px] text-slate-500 block mb-1">TOP_P</label>
-            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-              <div className="w-1/2 h-full bg-fuchsia-500"></div>
-            </div>
-            <div className="flex justify-between mt-1 text-[9px] font-mono">
-              <span className="text-fuchsia-400">0.50</span>
-              <span className="text-slate-600 italic uppercase">Focused</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Hardware Info</h3>
+      <div className="glass-panel !p-5">
+        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Deployment Status</h3>
         <div className="space-y-3">
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-400">VRAM Usage</span>
-            <span className="text-white font-mono">18.2 / 24 GB</span>
+            <span className="text-slate-400">Production Auth</span>
+            <span className="text-emerald-400 font-mono">ACTIVE</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-400">NPU Load</span>
-            <span className="text-white font-mono text-emerald-400">42%</span>
+            <span className="text-slate-400">Pixel Tracking</span>
+            <span className={`${enabledModules.includes('PixelRetarget') ? 'text-emerald-400' : 'text-slate-600'} font-mono`}>
+              {enabledModules.includes('PixelRetarget') ? 'READY' : 'OFFLINE'}
+            </span>
           </div>
         </div>
       </div>

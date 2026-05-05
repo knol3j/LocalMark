@@ -12,6 +12,9 @@ import { useState, useEffect, useRef } from 'react';
 import { CTRChart, ConversionChart } from './components/PerformanceChart';
 import Onboarding from './components/Onboarding';
 import ABTestingPanel from './components/ABTestingPanel';
+import CampaignPreview from './components/CampaignPreview';
+import AudienceInsight from './components/AudienceInsight';
+import Performance from './components/Performance';
 import { CollaborationProvider, useCollaboration } from './components/CollaborationProvider';
 import { signInWithGoogle } from './lib/firebase';
 import { jsPDF } from 'jspdf';
@@ -189,7 +192,7 @@ function AppContent() {
         {showOnboarding && <Onboarding onComplete={handleOnboardingComplete} />}
       </AnimatePresence>
 
-      <div className="flex-1 flex overflow-hidden p-4 gap-4">
+      <div className="flex-1 flex overflow-hidden p-2 md:p-4 gap-2 md:gap-4">
         {/* Main Workspace Group */}
         <div className="flex-1 flex flex-col gap-4">
           {/* Top Bar for Engine Status */}
@@ -299,47 +302,27 @@ function AppContent() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute inset-0 flex flex-col gap-4"
+                  className="absolute inset-0 flex flex-col gap-0"
                 >
-                  <div className="flex-1 bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl relative p-6 flex flex-col overflow-hidden">
-                    <div className="absolute top-4 left-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Architecture Preview</div>
-                    
-                    <div className="flex-1 flex items-center justify-center gap-12">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-24 h-24 rounded-2xl bg-indigo-500/10 border-2 border-indigo-500/30 flex flex-col items-center justify-center p-4 text-center shadow-xl shadow-indigo-500/10">
-                          <div className="text-2xl mb-1">👁️</div>
-                          <div className="text-[10px] font-bold text-indigo-300">Vision<br/>Encoder</div>
-                        </div>
-                        <div className="text-[10px] font-mono text-slate-500">CLIP-ViT-L/14</div>
-                      </div>
-                      
-                      <div className="h-px w-16 bg-gradient-to-r from-indigo-500/50 to-fuchsia-500/50"></div>
-                      
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="w-36 h-36 rounded-3xl bg-white/5 border-2 border-white/10 flex flex-col items-center justify-center p-4 text-center shadow-2xl backdrop-blur-xl relative group">
-                          <div className="absolute -inset-1 bg-gradient-to-tr from-indigo-500 to-fuchsia-500 rounded-3xl opacity-20 blur-sm group-hover:opacity-40 transition-opacity"></div>
-                          <div className="text-4xl mb-1 relative">🧠</div>
-                          <div className="text-xs font-bold text-white relative">GEMINI CORE</div>
-                          <div className="text-[9px] text-slate-400 mt-1 uppercase tracking-tighter relative">Multimodal Optimized</div>
-                        </div>
-                        <div className="text-[10px] font-mono text-slate-500">Quantized FP16</div>
-                      </div>
-                      
-                      <div className="h-px w-16 bg-gradient-to-r from-fuchsia-500/50 to-indigo-500/50"></div>
-                      
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-24 h-24 rounded-2xl bg-fuchsia-500/10 border-2 border-fuchsia-500/30 flex flex-col items-center justify-center p-4 text-center shadow-xl shadow-fuchsia-500/10">
-                          <div className="text-2xl mb-1">📈</div>
-                          <div className="text-[10px] font-bold text-fuchsia-300">Marketing<br/>LoRA</div>
-                        </div>
-                        <div className="text-[10px] font-mono text-slate-500">Ad-Copy-v2.1</div>
-                      </div>
+                  <div className="flex-1 min-h-0 bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl relative flex flex-col overflow-hidden">
+                    <div className="flex-1 overflow-hidden min-h-0">
+                      <CampaignPreview />
                     </div>
 
-                    <div className="absolute inset-0 top-[70%] bg-gradient-to-t from-[#020617] via-[#020617]/80 to-transparent">
+                    <div className="h-[35%] min-h-[180px] md:min-h-[320px] bg-[#020617]/40 border-t border-white/10 backdrop-blur-3xl relative z-10">
                       <ChatPanel externalPrompt={activePrompt} />
                     </div>
                   </div>
+                </motion.div>
+              ) : activeTab === 'campaigns' ? (
+                <motion.div 
+                  key="campaigns"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute inset-0 rounded-2xl overflow-hidden bg-white/5 border border-white/10"
+                >
+                  <CampaignPreview />
                 </motion.div>
               ) : activeTab === 'ab-test' ? (
                 <motion.div 
@@ -349,7 +332,32 @@ function AppContent() {
                   exit={{ opacity: 0, y: -10 }}
                   className="absolute inset-0 rounded-2xl overflow-hidden"
                 >
-                  <ABTestingPanel onNavigatePerformance={() => setActiveTab('performance')} />
+                  <ABTestingPanel 
+                    onNavigatePerformance={() => setActiveTab('performance')} 
+                    onNavigateEngine={(context) => {
+                      updateCampaignState({ activePrompt: context, activeTab: 'engine' });
+                    }}
+                  />
+                </motion.div>
+              ) : activeTab === 'audience' ? (
+                <motion.div 
+                  key="audience"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute inset-0 rounded-2xl overflow-hidden"
+                >
+                  <AudienceInsight />
+                </motion.div>
+              ) : activeTab === 'performance' ? (
+                <motion.div 
+                  key="performance"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute inset-0 rounded-2xl overflow-hidden"
+                >
+                  <Performance />
                 </motion.div>
               ) : (
                 <motion.div 
@@ -371,7 +379,7 @@ function AppContent() {
         </div>
 
         {/* Right Sidebar: Build Output / Performance */}
-        <aside className="w-80 flex flex-col gap-4 overflow-hidden">
+        <aside className="w-64 lg:w-80 hidden md:flex flex-col gap-4 overflow-hidden shrink-0">
           <div className="flex-1 bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-5 flex flex-col overflow-hidden">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <BarChart3 className="w-3 h-3 text-indigo-400" />

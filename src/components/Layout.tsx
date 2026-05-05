@@ -19,7 +19,7 @@ export default function Layout({ children, sidebar }: LayoutProps) {
       <div className="absolute bottom-[-100px] right-[-100px] w-[600px] h-[600px] bg-fuchsia-600/10 rounded-full blur-[120px] pointer-events-none"></div>
 
       {/* Sidebar */}
-      <aside className="w-72 border-r border-white/10 flex flex-col bg-white/5 backdrop-blur-xl z-20">
+      <aside className="w-60 lg:w-72 border-r border-white/10 hidden sm:flex flex-col bg-white/5 backdrop-blur-xl z-20 shrink-0">
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-fuchsia-500 rounded-lg shadow-lg shadow-indigo-500/20"></div>

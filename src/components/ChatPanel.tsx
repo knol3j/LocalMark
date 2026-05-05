@@ -1,21 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, X, Image as ImageIcon, Sparkles, Loader2, Camera, Copy, Check } from 'lucide-react';
+import { 
+  Send, Paperclip, X, Image as ImageIcon, Sparkles, Loader2, Camera, Copy, Check, 
+  Smartphone, Share2, Video, Linkedin, Instagram, Twitter, Columns, Zap,
+  Hash, Search, TrendingUp, BarChart
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
+import { Timestamp } from 'firebase/firestore';
 import { marketingModel } from '../lib/gemini';
 import { useCollaboration } from './CollaborationProvider';
+import { dataService, Keyword } from '../services/dataService';
 
 interface ChatPanelProps {
   externalPrompt?: string;
 }
 
 export default function ChatPanel({ externalPrompt }: ChatPanelProps) {
-  const { user, messages, sendMessage: syncMessage } = useCollaboration();
+  const { user, messages, sendMessage: syncMessage, campaignState } = useCollaboration();
+  const enabledModules = campaignState.enabledModules || [];
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [keywords, setKeywords] = useState<Keyword[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -30,6 +38,14 @@ export default function ChatPanel({ externalPrompt }: ChatPanelProps) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    if (!campaignState.id) return;
+    const unsubscribe = dataService.subscribeToKeywords(campaignState.id, (data) => {
+      setKeywords(data);
+    });
+    return () => unsubscribe();
+  }, [campaignState.id]);
 
   const handleSend = async () => {
     if (!input.trim() && !selectedImage) return;
@@ -49,12 +65,46 @@ export default function ChatPanel({ externalPrompt }: ChatPanelProps) {
       if (currentImage) {
         const base64Data = currentImage.split(',')[1];
         const mimeType = currentImage.split(';')[0].split(':')[1];
-        responseText = await marketingModel.analyzeAssets(base64Data, mimeType, currentInput || "Analyze this marketing asset.");
+        responseText = await marketingModel.analyzeAssets(base64Data, mimeType, currentInput || "Analyze this marketing asset.", enabledModules);
       } else {
-        responseText = await marketingModel.generateCopy(currentInput);
+        responseText = await marketingModel.generateCopy(currentInput, enabledModules);
       }
 
       await syncMessage('assistant', responseText || "I couldn't process that request.");
+
+      // Background data generation for production-ready feeling
+      if ((responseText.includes('[Campaign Strategy]') || responseText.includes('[Ad Copy]')) && campaignState.id) {
+        console.log('Detected strategy, generating background data...');
+        
+        // Generate Personas
+        marketingModel.generatePersonas(currentInput).then(personas => {
+          personas.forEach((p: any) => dataService.addPersona(campaignState.id!, p));
+        });
+
+        // Generate Variations
+        marketingModel.generateVariations(currentInput).then(variations => {
+          variations.forEach((v: any) => dataService.addVariation(campaignState.id!, v));
+        });
+
+        // Generate Benchmarks
+        marketingModel.generateBenchmarks(currentInput).then(benchmarks => {
+          // Save trajectory as metrics
+          benchmarks.trajectory.forEach((m: any, idx: number) => {
+            const date = new Date();
+            date.setDate(date.getDate() - (7 - idx));
+            dataService.addMetric(campaignState.id!, {
+              ...m,
+              timestamp: Timestamp.fromDate(date)
+            });
+          });
+        });
+
+        // Generate Keywords
+        marketingModel.generateKeywords(currentInput).then(kws => {
+          kws.forEach((kw: any) => dataService.addKeyword(campaignState.id!, kw));
+        });
+      }
+
     } catch (error) {
       console.error(error);
       await syncMessage('assistant', "Error: Failed to connect to the marketing engine.");
@@ -100,6 +150,116 @@ export default function ChatPanel({ externalPrompt }: ChatPanelProps) {
     if (file) handleFile(file);
   };
 
+  const renderContent = (content: string) => {
+    const toolActionRegex = /\[TOOL_ACTION: .*?\]/g;
+    const partsWithTools = content.split(toolActionRegex);
+    const tools = content.match(toolActionRegex);
+
+    const sections = content.split(/(\[.*?\]:)/g);
+    if (sections.length <= 1) {
+      // If no main sections, still try to render tool actions in a simple way
+      const subParts = content.split(/(\[TOOL_ACTION: .*?\])/g);
+      return (
+        <div className="space-y-2">
+          {subParts.map((part, i) => {
+            if (part.startsWith('[TOOL_ACTION:')) {
+              const actionText = part.replace('[TOOL_ACTION: ', '').replace(']', '');
+              return (
+                <div key={i} className="my-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
+                  <Zap className="w-4 h-4 text-emerald-400" />
+                  <div>
+                    <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">MCP Automation Triggered</div>
+                    <div className="text-xs text-white font-mono">{actionText}</div>
+                  </div>
+                </div>
+              );
+            }
+            return <ReactMarkdown key={i}>{part}</ReactMarkdown>;
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {sections.map((part, index) => {
+          if (part.startsWith('[TOOL_ACTION:')) return null; // Handled by splitting differently if needed, but here we use split by section mostly
+
+          if (part.startsWith('[') && part.endsWith(']:')) {
+            const title = part.replace(/[\[\]:]/g, '');
+            const isKit = title.includes('Kit') || title.includes('Mixed Media');
+            const isStrategy = title.toLowerCase().includes('strategy');
+            
+            return (
+              <div key={index} className={`mt-6 mb-3 flex items-center gap-2 ${isKit ? 'text-indigo-400' : isStrategy ? 'text-emerald-400' : 'text-slate-400'}`}>
+                {isStrategy && <Sparkles className="w-3 h-3" />}
+                {title.toLowerCase().includes('social') && <Share2 className="w-3 h-3" />}
+                {isKit && <Smartphone className="w-4 h-4" />}
+                <span className="text-[10px] font-bold uppercase tracking-widest leading-none bg-white/5 px-2 py-1.5 rounded-md border border-white/10 shadow-sm shadow-black/20">
+                  {title}
+                </span>
+              </div>
+            );
+          }
+          
+          // Check for sub-sections like [Instagram] inside the text part
+          if (part.includes('[Instagram') || part.includes('[Carousel') || part.includes('[LinkedIn') || part.includes('[TOOL_ACTION') || part.includes('#### Market Realities')) {
+            const subParts = part.split(/(\[.*?\]|#### .*?\n)/g);
+            return (
+              <div key={index} className="space-y-4">
+                {subParts.map((sub, sIdx) => {
+                  if (!sub.trim()) return null;
+
+                  if (sub.startsWith('#### Market Realities')) {
+                    return (
+                      <div key={sIdx} className="my-4 p-5 bg-amber-500/5 border border-amber-500/10 rounded-2xl relative overflow-hidden group/market">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/market:opacity-10 transition-opacity">
+                          <TrendingUp className="w-16 h-16 text-amber-400" />
+                        </div>
+                        <div className="text-[11px] font-bold text-amber-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                          <BarChart className="w-3 h-3" />
+                          Market Realities & Fact Check
+                        </div>
+                        <div className="prose prose-invert prose-xs max-w-none text-slate-300">
+                          <ReactMarkdown>{sub.replace('#### Market Realities', '')}</ReactMarkdown>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (sub.startsWith('[TOOL_ACTION:')) {
+                    const actionText = sub.replace('[TOOL_ACTION: ', '').replace(']', '');
+                    return (
+                      <div key={sIdx} className="my-1 p-2.5 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex items-center gap-3">
+                        <Zap className="w-3 h-3 text-emerald-400 animate-pulse" />
+                        <div className="text-[9px] text-white font-mono">{actionText}</div>
+                      </div>
+                    );
+                  }
+                  if (sub.startsWith('[') && sub.endsWith(']')) {
+                    const subTitle = sub.replace(/[\[\]]/g, '');
+                    return (
+                      <div key={sIdx} className="flex items-center gap-2 text-indigo-400 mt-6 first:mt-2">
+                        {subTitle.includes('Instagram') && <Instagram className="w-3 h-3 text-fuchsia-400" />}
+                        {subTitle.includes('TikTok') && <Video className="w-3 h-3 text-emerald-400" />}
+                        {subTitle.includes('LinkedIn') && <Linkedin className="w-3 h-3 text-blue-400" />}
+                        {subTitle.includes('Carousel') && <Columns className="w-3 h-3 text-indigo-400" />}
+                        <span className="text-[9px] font-bold underline underline-offset-4 decoration-indigo-500/30 uppercase tracking-widest">{subTitle}</span>
+                      </div>
+                    );
+                  }
+                  return <div key={sIdx} className="bg-white/[0.02] border border-white/5 rounded-xl p-4 shadow-inner"><ReactMarkdown>{sub}</ReactMarkdown></div>;
+                })}
+              </div>
+            );
+          }
+
+          return <ReactMarkdown key={index}>{part}</ReactMarkdown>;
+        })}
+      </div>
+    );
+  };
+
   return (
     <div 
       className={`flex flex-col h-full transition-colors ${isDragging ? 'bg-indigo-500/5' : 'bg-transparent'}`}
@@ -131,7 +291,7 @@ export default function ChatPanel({ externalPrompt }: ChatPanelProps) {
                   />
                 )}
                 <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed group/msg relative">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  {msg.role === 'assistant' ? renderContent(msg.content) : <ReactMarkdown>{msg.content}</ReactMarkdown>}
                   
                   {msg.role === 'assistant' && (
                     <button 
@@ -156,22 +316,50 @@ export default function ChatPanel({ externalPrompt }: ChatPanelProps) {
         )}
       </div>
 
+      {/* Keywords Ticker */}
+      <AnimatePresence>
+        {keywords.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="px-6 py-2 overflow-hidden bg-[#020617]/20 border-t border-white/5"
+          >
+            <div className="flex items-center gap-4 animate-ticker whitespace-nowrap">
+              <div className="flex items-center gap-1 text-[10px] font-bold text-indigo-400 uppercase tracking-widest shrink-0">
+                <Search className="w-3 h-3" />
+                SEO Search Intent:
+              </div>
+              <div className="flex items-center gap-6">
+                {keywords.map((kw) => (
+                  <button 
+                    key={kw.id} 
+                    onClick={() => navigator.clipboard.writeText(kw.term)}
+                    className="flex items-center gap-2 group cursor-pointer"
+                  >
+                    <Hash className="w-3 h-3 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+                    <span className="text-[11px] font-mono text-slate-400 group-hover:text-white transition-colors">{kw.term}</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-slate-500 font-bold group-hover:bg-indigo-500/10 group-hover:text-indigo-400 transition-all">{kw.volume}</span>
+                  </button>
+                ))}
+              </div>
+              {/* Duplicate for seamless loop if needed, but for now simple flex with gap is fine */}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Input Area */}
-      <div className="p-4 mx-4 mb-4 bg-white/10 border border-white/20 backdrop-blur-2xl rounded-3xl shadow-2xl z-30">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-4 text-slate-400 border-b border-white/5 pb-2 px-2">
+      <div className="p-2 md:p-4 mx-2 md:mx-4 mb-2 md:mb-4 bg-white/10 border border-white/20 backdrop-blur-2xl rounded-2xl md:rounded-3xl shadow-2xl z-30 shrink-0">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-4 text-slate-400 border-b border-white/5 pb-1 px-2">
             <button 
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest hover:text-white transition-colors"
+              className="flex items-center gap-2 text-[9px] uppercase font-bold tracking-widest hover:text-white transition-colors"
             >
-              <Paperclip className="w-4 h-4" />
-              Add Reference
+              <Paperclip className="w-3.5 h-3.5" />
+              Reference
             </button>
-            <button className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest hover:text-white transition-colors">
-              <Camera className="w-4 h-4" />
-              Capture
-            </button>
-            <div className="ml-auto font-mono text-[10px] opacity-30">CMD+K FOR SHORTCUTS</div>
+            <div className="ml-auto font-mono text-[9px] opacity-30 hidden sm:block">CMD+K FOR SHORTCUTS</div>
           </div>
 
           <div className="max-w-none relative flex items-center gap-4 px-2">

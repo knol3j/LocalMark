@@ -7,12 +7,15 @@ interface CollaborationContextType {
   user: User | null;
   loading: boolean;
   campaignState: {
+    id?: string;
     activePrompt?: string;
     activeTab?: string;
+    enabledModules?: string[];
   };
   messages: any[];
-  updateCampaignState: (updates: { activePrompt?: string; activeTab?: string }) => Promise<void>;
+  updateCampaignState: (updates: { activePrompt?: string; activeTab?: string; enabledModules?: string[] }) => Promise<void>;
   sendMessage: (role: 'user' | 'assistant', content: string, image?: string) => Promise<void>;
+  toggleModule: (moduleId: string) => Promise<void>;
 }
 
 const CollaborationContext = createContext<CollaborationContextType | undefined>(undefined);
@@ -112,14 +115,25 @@ export function CollaborationProvider({ children }: { children: React.ReactNode 
     }
   };
 
+  const toggleModule = async (moduleId: string) => {
+    if (!user) return;
+    const currentModules = campaignState.enabledModules || [];
+    const newModules = currentModules.includes(moduleId)
+      ? currentModules.filter(id => id !== moduleId)
+      : [...currentModules, moduleId];
+    
+    await updateCampaignState({ enabledModules: newModules });
+  };
+
   return (
     <CollaborationContext.Provider value={{
       user,
       loading,
-      campaignState,
+      campaignState: { ...campaignState, id: campaignId },
       messages,
       updateCampaignState,
-      sendMessage
+      sendMessage,
+      toggleModule
     }}>
       {children}
     </CollaborationContext.Provider>

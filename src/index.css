@@ -6,20 +6,39 @@
   --color-indigo-600: #4f46e5;
   --color-fuchsia-400: #e879f9;
   --color-fuchsia-500: #d946ef;
+
+  --animate-ticker: ticker 30s linear infinite;
+
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
 }
 
 @layer base {
+  body {
+    @apply bg-[#020617] text-slate-200 antialiased selection:bg-indigo-500/30;
+  }
+  
   .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 5px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
   }
+}
+
+.glass-panel {
+  @apply bg-white/5 border border-white/10 backdrop-blur-md rounded-[32px];
+}
+
+.glass-card {
+  @apply bg-white/5 border border-white/10 rounded-2xl p-6 transition-all hover:bg-white/[0.08];
 }
